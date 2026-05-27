@@ -136,6 +136,9 @@ export default class Gear extends cc.Component {
             if (this._isSlotTakenByOther(slot)) {
                 continue;
             }
+            if (this.gamePlay.isSlotBlockedByGearMain(slot)) {
+                continue;
+            }
             return slot;
         }
         return null;

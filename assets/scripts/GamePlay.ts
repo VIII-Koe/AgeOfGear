@@ -110,12 +110,39 @@ export default class NewClass extends cc.Component {
         this.energyLabel.string = this.totalEnergy.toString();
     }
 
+    getGearMainSlotLocalPos(): cc.Vec2 | null {
+        if (!this.gearMain || !this.listSlot) {
+            return null;
+        }
+        const world = this.gearMain.convertToWorldSpaceAR(cc.Vec2.ZERO);
+        return this.listSlot.convertToNodeSpaceAR(world);
+    }
+
+    isSlotBlockedByGearMain(slot: cc.Node): boolean {
+        const blocked = this.getGearMainSlotLocalPos();
+        if (!blocked) {
+            return false;
+        }
+        const pos = slot.getPosition();
+        return this._isSameSlotCell(pos.x, pos.y, blocked.x, blocked.y);
+    }
+
+    private _isSameSlotCell(x1: number, y1: number, x2: number, y2: number): boolean {
+        return Math.abs(x1 - x2) < 45 && Math.abs(y1 - y2) < 45;
+    }
+
     createSlotEmpty() {
+        const blockedPos = this.getGearMainSlotLocalPos();
         for (let i = 0; i < 6; i++) {
             for (let j = 0; j < 4; j++) {
+                const x = -45 + j * 90;
+                const y = 295 - i * 90;
+                if (blockedPos && this._isSameSlotCell(x, y, blockedPos.x, blockedPos.y)) {
+                    continue;
+                }
                 const slotEmpty = cc.instantiate(this.slotEmptyPrefab);
                 slotEmpty.parent = this.listSlot;
-                slotEmpty.setPosition(-45 + j * 90, 295 - i * 90);
+                slotEmpty.setPosition(x, y);
                 const square = slotEmpty.getChildByName("square");
                 if (square) {
                     square.active = false;
