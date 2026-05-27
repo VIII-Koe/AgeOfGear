@@ -10,6 +10,15 @@ import Unit from "./Unit";
 
 const {ccclass, property} = cc._decorator;
 
+const ENEMY_PATH_START = cc.v2(235, 435);
+const ENEMY_PATH_ARC_END = cc.v2(95, 435);
+const ENEMY_PATH_WP2 = cc.v2(-220, 435);
+const ENEMY_PATH_WP3 = cc.v2(-220, -410);
+const ENEMY_PATH_END = cc.v2(141, -410);
+const ENEMY_ARC_HEIGHT = 120;
+
+type EnemyPathStep = 'arc' | 'toWp2' | 'toWp3' | 'flip' | 'toEnd' | 'done';
+
 @ccclass
 export default class Enemy extends cc.Component {
 
@@ -45,6 +54,8 @@ export default class Enemy extends cc.Component {
     unitAttackTarget = [];
 
     gamePlay: GamePlay = null;
+
+    private _pathStep: EnemyPathStep = 'arc';
 
     // LIFE-CYCLE CALLBACKS:
 
@@ -83,18 +94,115 @@ export default class Enemy extends cc.Component {
         if (this.isDead) {
             return;
         }
-        const waypointEnd = cc.v2(0, 325);
+        this.node.setPosition(ENEMY_PATH_START);
+        this.node.setScale(0, 0, 1);
+        this._pathStep = 'arc';
+        this._runPathFromStep('arc', true);
+    }
 
-        this.node.stopAllActions();
+    private _resumeMovePath() {
+        if (this.isDead || this._pathStep === 'done') {
+            return;
+        }
+        this._runPathFromStep(this._pathStep, false);
+    }
+
+    private _runPathFromStep(step: EnemyPathStep, fromSpawn: boolean) {
+        cc.Tween.stopAllByTarget(this.node);
         this.isWalking = true;
         this.walk();
 
-        const startPos = this.node.getPosition();
-        cc.tween(this.node).to(this._getMoveDuration(startPos, waypointEnd), {position: cc.v3(waypointEnd.x, waypointEnd.y)}).call(()=>{
-            this.gamePlay.endGame(false);
-            this.idle();
-        }).start();
-        
+        if (fromSpawn) {
+            this.node.setPosition(ENEMY_PATH_START);
+            this.node.setScale(0, 0, 1);
+            step = 'arc';
+        }
+
+        const cur = (): cc.Vec2 => cc.v2(this.node.x, this.node.y);
+        const steps: EnemyPathStep[] = ['arc', 'toWp2', 'toWp3', 'flip', 'toEnd'];
+        const startIdx = steps.indexOf(step);
+        let tween = cc.tween(this.node);
+
+        if (startIdx <= 0) {
+            const from = fromSpawn ? ENEMY_PATH_START : cur();
+            const scaleFrom = fromSpawn ? 0 : this.node.scale;
+            tween = this._appendArcJump(tween, from, ENEMY_PATH_ARC_END, scaleFrom, 1, ENEMY_ARC_HEIGHT)
+                .call(() => {
+                    this._pathStep = 'toWp2';
+                });
+        }
+
+        if (startIdx <= 1) {
+            const from = startIdx === 1 ? cur() : ENEMY_PATH_ARC_END;
+            tween = tween
+                .to(this._getMoveDuration(from, ENEMY_PATH_WP2), {
+                    position: cc.v3(ENEMY_PATH_WP2.x, ENEMY_PATH_WP2.y, 0),
+                })
+                .call(() => {
+                    this._pathStep = 'toWp3';
+                });
+        }
+
+        if (startIdx <= 2) {
+            const from = startIdx === 2 ? cur() : ENEMY_PATH_WP2;
+            tween = tween
+                .to(this._getMoveDuration(from, ENEMY_PATH_WP3), {
+                    position: cc.v3(ENEMY_PATH_WP3.x, ENEMY_PATH_WP3.y, 0),
+                })
+                .call(() => {
+                    this._pathStep = 'flip';
+                });
+        }
+
+        if (startIdx <= 3) {
+            tween = tween.call(() => {
+                this.node.setScale(-1, this.node.scaleY, this.node.scaleZ);
+                this._pathStep = 'toEnd';
+            });
+        }
+
+        if (startIdx <= 4) {
+            const from = startIdx === 4 ? cur() : ENEMY_PATH_WP3;
+            tween = tween
+                .to(this._getMoveDuration(from, ENEMY_PATH_END), {
+                    position: cc.v3(ENEMY_PATH_END.x, ENEMY_PATH_END.y, 0),
+                })
+                .call(() => {
+                    this._pathStep = 'done';
+                    this.isWalking = false;
+                    this.gamePlay.endGame(false);
+                    this.idle();
+                });
+        }
+
+        tween.start();
+    }
+
+    private _appendArcJump(
+        tween: cc.Tween,
+        from: cc.Vec2,
+        to: cc.Vec2,
+        scaleFrom: number,
+        scaleTo: number,
+        arcHeight: number
+    ): cc.Tween {
+        const duration = this._getMoveDuration(from, to);
+        this.node.setPosition(from.x, from.y);
+        this.node.setScale(scaleFrom, scaleFrom, 1);
+        return tween.to(duration/4, { scale: scaleTo }, {
+            progress: (_start: number, _end: number, _current: number, ratio: number) => {
+                const t = ratio;
+                const x = from.x + (to.x - from.x) * t;
+                const y = from.y + (to.y - from.y) * t + arcHeight * 4 * t * (1 - t);
+                const s = scaleFrom + (scaleTo - scaleFrom) * t;
+                this.node.setPosition(x, y);
+                this.node.setScale(s, s, 1);
+                return s;
+            },
+        }).call(() => {
+            this.node.setPosition(to.x, to.y);
+            this.node.setScale(scaleTo, scaleTo, 1);
+        });
     }
 
     private _getMoveDuration(from: cc.Vec2, to: cc.Vec2): number {
@@ -106,14 +214,14 @@ export default class Enemy extends cc.Component {
     attack() {
         if(this.unitAttackTarget.length > 0 && !this.isAttacking) {
             this.isAttacking = true;
-            this.node.pauseAllActions();
+            cc.Tween.stopAllByTarget(this.node);
             this.bodySkeleton.setAnimation(0, 'attack', false);
         }
     }
 
     idle() {
         this.isAttacking = false;
-        this.node.pauseAllActions();
+        cc.Tween.stopAllByTarget(this.node);
         this.bodySkeleton.setAnimation(0, 'idle', true);
     }
 
@@ -130,7 +238,7 @@ export default class Enemy extends cc.Component {
             this.gamePlay.enemyDie(this.node.getPosition());
             this.isDead = true;
             this.bodyCollider.enabled = false;
-            this.node.stopAllActions();
+            cc.Tween.stopAllByTarget(this.node);
             this.bodySkeleton.setAnimation(0, 'die', false);
         }
     }
@@ -196,7 +304,7 @@ export default class Enemy extends cc.Component {
                 if(this.unitAttackTarget.length > 0) {
                     this.attack();
                 } else {
-                    this.node.resumeAllActions();
+                    this._resumeMovePath();
                 }
             }
         });

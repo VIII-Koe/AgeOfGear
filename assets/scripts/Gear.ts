@@ -159,6 +159,7 @@ export default class Gear extends cc.Component {
     }
 
     private _snapToSlot(slot: cc.Node) {
+        this.gamePlay.hideShop();
         const parent = this.gearParent.parent;
         const worldPos = slot.convertToWorldSpaceAR(cc.Vec2.ZERO);
         const localPos = parent.convertToNodeSpaceAR(worldPos);

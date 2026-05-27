@@ -17,6 +17,9 @@ export default class NewClass extends cc.Component {
     slotEmptyPrefab: cc.Prefab = null;
 
     @property(cc.Node)
+    shopNode: cc.Node = null;
+
+    @property(cc.Node)
     gateTop:cc.Node = null;
 
     @property(cc.Node)
@@ -108,11 +111,11 @@ export default class NewClass extends cc.Component {
     }
 
     createSlotEmpty() {
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 6; j++) {
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < 4; j++) {
                 const slotEmpty = cc.instantiate(this.slotEmptyPrefab);
                 slotEmpty.parent = this.listSlot;
-                slotEmpty.setPosition(-225 + j * 90, 115 - i * 90);
+                slotEmpty.setPosition(-45 + j * 90, 295 - i * 90);
                 const square = slotEmpty.getChildByName("square");
                 if (square) {
                     square.active = false;
@@ -121,7 +124,14 @@ export default class NewClass extends cc.Component {
         }
     }
 
+    hideShop() {
+        cc.tween(this.shopNode)
+            .by(0.2, {y:-600})
+            .start();
+    }
+
     spawnUnit(pos: cc.Vec2 | cc.Vec3) {
+        if(this.isEndGame) return;
         cc.audioEngine.play(this.spawnSound, false, 1);
         const unit = cc.instantiate(this.unitPrefab);
         unit.parent = this.listUnit;
@@ -192,7 +202,8 @@ export default class NewClass extends cc.Component {
             });
             this.gearMain.getComponent(cc.BoxCollider).enabled = false;
             this.gearMain.getComponent(cc.Animation).stop();
-            cc.tween(this.listNewGear).set({active:true,scale:0}).to(0.25, { scale: 1 }).call(()=>{
+            cc.tween(this.shopNode).by(0.2, {y:600}).start();
+            cc.tween(this.listNewGear).delay(0.2).set({active:true,scale:0}).to(0.1, { scale: 1 }).call(()=>{
                 this.linkToStore.active = true;
                 this.guide.active = true;
                 this.guide.getChildByName('hand').getComponent(cc.Animation).play('hand');
@@ -202,12 +213,12 @@ export default class NewClass extends cc.Component {
             this.listEnemy.children.forEach(enemy => {
                 enemy.getComponent(Enemy).idle();
             });
-            this.smoke.active = true;
-            this.gateTop.active = false;
-            this.gateBottom.active = false;
-            this.gateLose.active = true;
+            // this.smoke.active = true;
+            // this.gateTop.active = false;
+            // this.gateBottom.active = false;
+            // this.gateLose.active = true;
             cc.audioEngine.play(this.loseSound, false, 1);
-            cc.tween(this.loseNode).delay(0.5).set({active:true,scale:0}).to(0.25, { scale: 1 }).start();
+            cc.tween(this.loseNode).delay(0.1).set({active:true,scale:0}).to(0.25, { scale: 1 }).start();
             this.linkToStore.active = true;
         }
 
