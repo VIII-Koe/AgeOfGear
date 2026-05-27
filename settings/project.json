@@ -10,7 +10,6 @@
   "excluded-modules": [
     "DragonBones",
     "Geom Utils",
-    "Intersection",
     "Layout",
     "Mesh",
     "MotionStreak",
