@@ -195,12 +195,12 @@
     var defaultLink = '';
     openAdUrl = function (adChanel) {
       if (cc.sys.os == cc.sys.OS_ANDROID) {
-        clickTag = 'https://play.google.com/store/apps/details?id=com.fansipan.epic.stickman.survival.rpg.idle.game';
+        clickTag = '';
       }
       else if (cc.sys.os == cc.sys.OS_IOS) {
-        clickTag = 'https://apps.apple.com/vn/app/epic-stickman-rpg-idle-game/id6503872838';
+        clickTag = '';
       } else {
-        clickTag = 'https://play.google.com/store/apps/details?id=com.fansipan.epic.stickman.survival.rpg.idle.game';
+        clickTag = '';
       }
       var adNetwork = '{{__adv_channels_adapter__}}';
       switch (adChanel) {
